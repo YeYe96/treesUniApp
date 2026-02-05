@@ -1,0 +1,39 @@
+﻿/* miniprogram/styles/theme.wxss -> uniapp theme.css */
+page {
+  /* Mist & Sage Palette */
+  --mist: #d3dcd6;       /* 浅灰绿 - 顶部迷雾 */
+  --sage: #a0b2a6;       /* 深灰绿 - 底部苔藓 */
+  --trunk: #2f3530;      /* 深炭黑 - 树干 */
+  --paper-light: #f4f6f3;/* 米白 - 信纸/强调 */
+  --paper-aged: #f2efe9; /* 纸张泛黄 */
+
+  /* Legacy/Accent Colors */
+  --rust: #9a4e40;       /* 铁锈红 - 印章 */
+  --ink: #1c1c1b;        /* 墨黑 - 正文 */
+  --ink-light: #595959;  /* 浅墨 - 次要文字 */
+  --moss: #6f7f6b;       /* 苔藓绿 - 回音强调 */
+
+  /* Postbox open page tokens */
+  --color-bg-paper: #f2efe9;
+  --color-text-primary: #333333;
+  --color-text-secondary: #8c867a;
+  --color-accent-rust: #9a4e40;
+  --spacing-sm: 16rpx;
+  --spacing-md: 32rpx;
+  --spacing-lg: 48rpx;
+  --spacing-xl: 64rpx;
+
+  /* Fonts */
+  --font-serif: "Times New Roman", "Songti SC", "SimSun", serif;
+  --font-sans: "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
+
+  /* Spacing */
+  --space-sm: 16rpx;
+  --space-md: 32rpx;
+  --space-lg: 48rpx;
+  --space-xl: 64rpx;
+}
+
+.text-serif { font-family: var(--font-serif); }
+.text-sans { font-family: var(--font-sans); }
+.text-ink { color: var(--ink); }

@@ -1,0 +1,21 @@
+﻿/* app.wxss -> app.css */
+page {
+  background: linear-gradient(180deg, var(--mist) 0%, var(--sage) 100%);
+  background-attachment: fixed;
+  min-height: 100vh;
+  font-family: var(--font-serif);
+  color: var(--ink);
+  font-size: 30rpx;
+  line-height: 1.6;
+}
+
+.container {
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+.vertical-text {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  letter-spacing: 4rpx;
+}

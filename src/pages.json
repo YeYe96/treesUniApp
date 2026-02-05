@@ -1,0 +1,80 @@
+﻿{
+  "pages": [
+    {
+      "path": "pages/desk/index",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/desk/detail",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/windowsill/index",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/windowsill/editor",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/windowsill/sealed/index",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/postbox/index",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/postbox/open/index",
+      "style": {
+        "navigationStyle": "custom"
+      }
+    }
+  ],
+  "globalStyle": {
+    "backgroundColor": "#F6F6F6",
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#F6F6F6",
+    "navigationBarTitleText": "静谧书房",
+    "navigationBarTextStyle": "black",
+    "navigationStyle": "custom"
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#333333",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/desk/index",
+        "text": "案头",
+        "iconPath": "static/images/tabbar/desk.png",
+        "selectedIconPath": "static/images/tabbar/desk_active.png"
+      },
+      {
+        "pagePath": "pages/windowsill/index",
+        "text": "窗边",
+        "iconPath": "static/images/tabbar/windowsill.png",
+        "selectedIconPath": "static/images/tabbar/windowsill_active.png"
+      },
+      {
+        "pagePath": "pages/postbox/index",
+        "text": "邮筒",
+        "iconPath": "static/images/tabbar/postbox.png",
+        "selectedIconPath": "static/images/tabbar/postbox_active.png"
+      }
+    ]
+  }
+}

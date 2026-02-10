@@ -47,7 +47,7 @@
     "backgroundColor": "#F6F6F6",
     "backgroundTextStyle": "light",
     "navigationBarBackgroundColor": "#F6F6F6",
-    "navigationBarTitleText": "静谧书房",
+    "navigationBarTitleText": "写信与收信",
     "navigationBarTextStyle": "black",
     "navigationStyle": "custom"
   },
@@ -59,19 +59,19 @@
     "list": [
       {
         "pagePath": "pages/desk/index",
-        "text": "案头",
+        "text": "信件",
         "iconPath": "static/images/tabbar/desk.png",
         "selectedIconPath": "static/images/tabbar/desk_active.png"
       },
       {
         "pagePath": "pages/windowsill/index",
-        "text": "窗边",
+        "text": "写信",
         "iconPath": "static/images/tabbar/windowsill.png",
         "selectedIconPath": "static/images/tabbar/windowsill_active.png"
       },
       {
         "pagePath": "pages/postbox/index",
-        "text": "邮筒",
+        "text": "取信",
         "iconPath": "static/images/tabbar/postbox.png",
         "selectedIconPath": "static/images/tabbar/postbox_active.png"
       }

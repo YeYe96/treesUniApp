@@ -52,6 +52,8 @@
 
 <script>
 import { formatTimePoetic, getWaitingText } from '@/utils/util';
+import { callCloudFunction } from '@/utils/cloud';
+import { consumeRoutePayload } from '@/utils/route-payload';
 
 export default {
   data() {
@@ -73,6 +75,7 @@ export default {
     const info = uni.getSystemInfoSync ? uni.getSystemInfoSync() : { statusBarHeight: 0 };
     this.statusBarHeight = info.statusBarHeight || 0;
 
+    const payload = consumeRoutePayload(options.payloadKey);
     const initialData = {
       connectionId: options.id,
       rootId: options.rootId || '',
@@ -81,18 +84,11 @@ export default {
       waitingText: getWaitingText()
     };
 
-    const letters = this.getMockLetters();
-
+    const letters = this.normalizeLetters(payload ? payload.letters : []);
     let targetIndex = 0;
-    if (options.targetLetterId) {
-      const idx = letters.findIndex((l) => l._id === options.targetLetterId);
-      if (idx !== -1) {
-        targetIndex = idx;
-      }
-    }
-
-    if (letters[targetIndex] && letters[targetIndex].status === 'unread') {
-      letters[targetIndex].status = 'read';
+    if (payload && payload.targetLetterId) {
+      const idx = letters.findIndex((l) => l._id === payload.targetLetterId);
+      if (idx !== -1) targetIndex = idx;
     }
 
     this.connectionId = initialData.connectionId;
@@ -102,8 +98,12 @@ export default {
     this.waitingText = initialData.waitingText;
     this.isNewEcho = options.isNewEcho === '1';
     this.letters = letters;
-    this.readingLetter = letters[targetIndex];
-    this.readingIndex = targetIndex;
+    this.readingLetter = letters[targetIndex] || null;
+    this.readingIndex = letters.length > 0 ? targetIndex : -1;
+
+    if (!payload || letters.length === 0) {
+      uni.showToast({ title: '信件数据已失效，请返回列表重试', icon: 'none' });
+    }
 
     uni.vibrateShort({ type: 'medium' });
   },
@@ -112,42 +112,18 @@ export default {
       uni.navigateBack();
     },
 
-    getMockLetters() {
-      const letterData = [
-        {
-          _id: 'l_latest',
-          content: '关于那个案子，我有一些新的想法...\n\n最近我一直在思考，如果我们从另一个角度切入，是否会看到完全不同的景象？\n\n(此处省略一千字)...',
-          createTime: new Date(new Date().getTime() - 2 * 24 * 60 * 60 * 1000),
-          isMe: false,
-          status: 'unread'
-        },
-        {
-          _id: 'l3',
-          content: '很高兴遇到懂我的人。那一刻我也在看雨，感觉我们共享了同一个时空。\n\n关于你提到的时间旅行，我也曾无数次幻想过...',
-          createTime: new Date(new Date().getTime() - 13 * 24 * 60 * 60 * 1000),
-          isMe: true,
-          status: 'read'
-        },
-        {
-          _id: 'l2',
-          content: '海的那边是另一片陆地。我也很喜欢海，尤其是黄昏时的海。\n\n那种层层叠叠的金色浪花，就像时间的褶皱。',
-          createTime: new Date(new Date().getTime() - 14 * 24 * 60 * 60 * 1000),
-          isMe: false,
-          status: 'read'
-        },
-        {
-          _id: 'l1',
-          content: '今天天气真好，想去海边走走。不知道海的那边是什么样的？',
-          createTime: new Date(new Date().getTime() - 15 * 24 * 60 * 60 * 1000),
-          isMe: true,
-          status: 'read'
-        }
-      ];
-
-      return letterData.map((l) => ({
-        ...l,
-        timeLabel: formatTimePoetic(l.createTime)
-      }));
+    normalizeLetters(list) {
+      return (list || []).map((l, index) => {
+        const time = l.createTime || l.date || new Date();
+        return {
+          _id: l._id || `letter-${index}`,
+          content: l.content || l.summary || '',
+          createTime: time,
+          isMe: !!l.isMe,
+          status: l.status || 'read',
+          timeLabel: formatTimePoetic(time)
+        };
+      });
     },
 
     switchLetter(index) {
@@ -189,10 +165,7 @@ export default {
       if (this.isNewEcho && this.replyId) {
         // #ifdef MP-WEIXIN
         try {
-          await wx.cloud.callFunction({
-            name: 'reviewReply',
-            data: { replyId: this.replyId, action: 'accept' }
-          });
+          await callCloudFunction('reviewReply', { replyId: this.replyId, action: 'accept' });
         } catch (err) {
           // ignore to keep flow smooth
         }

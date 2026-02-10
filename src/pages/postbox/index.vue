@@ -2,21 +2,21 @@
   <view class="container page-postbox">
     <view class="header-side">
       <view class="header-group">
-        <text class="title-en">THE POSTBOX</text>
+        <text class="title-en">取信邮箱</text>
         <view class="divider-v"></view>
-        <text class="title-cn">Retrieval Ritual</text>
-        <text class="cycle-tag">CYCLE 4: WAITING</text>
+        <text class="title-cn">输入取信码</text>
+        <text class="cycle-tag">查看来信</text>
       </view>
     </view>
 
-    <view class="ritual-content">
+    <view class="ritual-content" :animation="ritualAnimation">
       <view class="decoration-area">
         <view class="decor-icon left">🌿</view>
         <view class="decor-icon right">🌿</view>
       </view>
 
       <view class="input-section">
-        <text class="code-label">C O D E</text>
+        <text class="code-label">取 信 码</text>
         <view class="underline-deco"></view>
 
         <input
@@ -29,36 +29,47 @@
           @confirm="onSubmit"
         />
 
-        <text class="instruction">Enter the code inscribed on the\nfallen leaf to reveal its message.</text>
+        <text class="instruction">输入对方分享给你的取信码，
+即可拆阅信件。</text>
       </view>
 
       <view class="action-section">
         <view class="leaf-mark">🍃</view>
 
-        <view class="btn-open" :class="code.length > 0 ? 'active' : ''" @tap="onSubmit">
-          <text>OPEN SEAL</text>
+        <view class="btn-open" :class="code.length > 0 ? 'active' : ''" :animation="openBtnAnimation" @tap="onSubmit">
+          <text>拆 开 信 封</text>
           <view class="icon-arrow">→</view>
         </view>
       </view>
     </view>
 
     <view class="anim-retrieval-layer" v-if="isRetrieving" @touchmove.stop.prevent>
-      <view class="falling-envelope">
+      <view class="falling-envelope" :animation="retrievalEnvelopeAnimation">
         <view class="envelope-back"></view>
         <view class="envelope-seal">🌿</view>
       </view>
-      <view class="retrieval-text">Fetching from afar...</view>
+      <view class="retrieval-text" :animation="retrievalTextAnimation">正在取信...</view>
     </view>
   </view>
 </template>
 
 <script>
+import { callCloudFunction } from '@/utils/cloud';
+import { saveRoutePayload } from '@/utils/route-payload';
+
 export default {
   data() {
     return {
       code: '',
-      isRetrieving: false
+      isRetrieving: false,
+      ritualAnimation: {},
+      openBtnAnimation: {},
+      retrievalEnvelopeAnimation: {},
+      retrievalTextAnimation: {}
     };
+  },
+  onReady() {
+    this.runIntroAnimation();
   },
   methods: {
     onInput(e) {
@@ -67,61 +78,72 @@ export default {
 
     onSubmit() {
       if (!this.code) return;
+      const tapAnim = uni.createAnimation({ duration: 120, timingFunction: 'ease-out' });
+      tapAnim.scale(0.94).step().scale(1).step({ duration: 180 });
+      this.openBtnAnimation = tapAnim.export();
+
       uni.vibrateShort({ type: 'light' });
       this.fetchLetter(this.code);
     },
 
+
+    runIntroAnimation() {
+      const intro = uni.createAnimation({ duration: 700, timingFunction: 'ease-out' });
+      intro.opacity(0).translateY(36).step({ duration: 0 });
+      intro.opacity(1).translateY(0).step();
+      this.ritualAnimation = intro.export();
+    },
+
+    runRetrievalAnimation() {
+      const envelopeAnim = uni.createAnimation({ duration: 900, timingFunction: 'ease-in-out' });
+      envelopeAnim.opacity(0).translateY(-20).scale(0.86).step({ duration: 0 });
+      envelopeAnim.opacity(1).translateY(0).scale(1).step();
+      this.retrievalEnvelopeAnimation = envelopeAnim.export();
+
+      const textAnim = uni.createAnimation({ duration: 700, timingFunction: 'ease-in-out' });
+      textAnim.opacity(0).step({ duration: 0 });
+      textAnim.opacity(1).step({ duration: 500, delay: 260 });
+      this.retrievalTextAnimation = textAnim.export();
+    },
+
     async fetchLetter(code) {
       this.isRetrieving = true;
+      this.$nextTick(() => {
+        this.runRetrievalAnimation();
+      });
       uni.vibrateShort({ type: 'medium' });
 
       try {
-        const fetchPromise = new Promise((resolve, reject) => {
-          // #ifdef MP-WEIXIN
-          try {
-            if (!wx.cloud) {
-              reject(new Error('云能力未初始化'));
-              return;
-            }
-            wx.cloud.callFunction({
-              name: 'getLetter',
-              data: { code }
-              success: resolve,
-              fail: reject
-            });
-          } catch (err) {
-            reject(err);
-          }
-          // #endif
-          // #ifndef MP-WEIXIN
-          reject(new Error('当前平台不支持云函数'));
-          // #endif
-        });
-
+        const fetchPromise = callCloudFunction('getLetter', { code });
         const animPromise = new Promise((resolve) => setTimeout(resolve, 2500));
-        const [res] = await Promise.all([fetchPromise, animPromise]);
+        const [result] = await Promise.all([fetchPromise, animPromise]);
 
-        if (res.result.code === 200) {
-          const letter = res.result.data;
+        if (result.code === 200) {
+          const letter = result.data || {};
+          const payloadKey = saveRoutePayload({
+            letterId: letter._id,
+            content: letter.content,
+            createTime: letter.createTime
+          });
           uni.vibrateShort({ type: 'light' });
 
           setTimeout(() => {
             this.isRetrieving = false;
             uni.navigateTo({
-              url: `/pages/postbox/open/index?id=${letter._id}&content=${encodeURIComponent(letter.content)}&time=${letter.createTime}`
+              url: `/pages/postbox/open/index?payloadKey=${payloadKey}`
             });
           }, 500);
         } else {
           this.isRetrieving = false;
           uni.showToast({
-            title: '查无此信',
+            title: result.msg || '查无此信',
             icon: 'none'
           });
         }
       } catch (err) {
         this.isRetrieving = false;
         uni.showToast({
-          title: '取信失败',
+          title: err.message || '取信失败',
           icon: 'none'
         });
       }

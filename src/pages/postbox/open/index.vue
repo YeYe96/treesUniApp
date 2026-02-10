@@ -5,19 +5,19 @@
       <view class="loading-text">拆阅中...</view>
     </view>
 
-    <view class="letter-container" :class="showContent ? 'fade-in' : ''">
+    <view class="letter-container" :class="showContent ? 'fade-in' : ''" :animation="letterAnimation">
       <scroll-view scroll-y class="paper-content">
         <view class="meta-info">
           <text class="date">{{ createTime }}</text>
-          <text class="from">来自 远方</text>
+          <text class="from">来自一位陌生朋友</text>
         </view>
 
         <text class="content-text">{{ content }}</text>
       </scroll-view>
 
-      <view class="action-bar">
-        <view class="btn-archive" @tap="onArchive">收入案头</view>
-        <view class="btn-reply" @tap="onReply">提笔回信</view>
+      <view class="action-bar" :animation="actionBarAnimation">
+        <view class="btn-archive" @tap="onArchive">加入信件列表</view>
+        <view class="btn-reply" @tap="onReply">写回信</view>
       </view>
     </view>
   </view>
@@ -25,6 +25,7 @@
 
 <script>
 import { formatTime } from '@/utils/util';
+import { consumeRoutePayload } from '@/utils/route-payload';
 
 export default {
   data() {
@@ -33,21 +34,51 @@ export default {
       content: '',
       createTime: '',
       isLoading: true,
-      showContent: false
+      showContent: false,
+      letterAnimation: {},
+      actionBarAnimation: {}
     };
   },
   onLoad(options) {
-    if (options && options.id) {
-      this.letterId = options.id;
-      this.content = decodeURIComponent(options.content || '');
-      this.createTime = formatTime(new Date(options.time || new Date()));
+    const payload = consumeRoutePayload(options.payloadKey);
+    if (payload && payload.letterId) {
+      this.letterId = payload.letterId;
+      this.content = payload.content || '';
+      this.createTime = formatTime(new Date(payload.createTime || new Date()));
       setTimeout(() => {
         this.isLoading = false;
         this.showContent = true;
+        this.$nextTick(() => {
+          this.playOpenAnimations();
+        });
       }, 2000);
+      return;
     }
+
+    this.isLoading = false;
+    this.showContent = true;
+    this.$nextTick(() => {
+      this.playOpenAnimations();
+    });
+    uni.showToast({
+      title: '信件数据已失效，请重新取信',
+      icon: 'none'
+    });
   },
   methods: {
+
+    playOpenAnimations() {
+      const paperAnim = uni.createAnimation({ duration: 700, timingFunction: 'ease-out' });
+      paperAnim.opacity(0).translateY(28).step({ duration: 0 });
+      paperAnim.opacity(1).translateY(0).step();
+      this.letterAnimation = paperAnim.export();
+
+      const barAnim = uni.createAnimation({ duration: 520, timingFunction: 'ease-out' });
+      barAnim.opacity(0).translateY(20).step({ duration: 0 });
+      barAnim.opacity(1).translateY(0).step({ delay: 240 });
+      this.actionBarAnimation = barAnim.export();
+    },
+
     onReply() {
       uni.vibrateShort({ type: 'light' });
       uni.navigateTo({
@@ -57,7 +88,7 @@ export default {
     onArchive() {
       uni.vibrateShort({ type: 'medium' });
       uni.showToast({
-        title: '已收入案头',
+        title: '已加入信件列表',
         icon: 'success'
       });
       setTimeout(() => {

@@ -35,20 +35,23 @@
     </view>
 
     <view class="animation-layer" v-if="isSealing" @touchmove.stop.prevent>
-      <view class="anim-paper" :class="step >= 1 ? 'folding' : ''" :style="{ backgroundColor: textures[bgIndex] }"></view>
+      <view class="anim-paper" :class="step >= 1 ? 'folding' : ''" :animation="paperAnimation" :style="{ backgroundColor: textures[bgIndex] }"></view>
 
-      <view class="anim-envelope" v-if="step >= 2" :class="step >= 4 ? 'flying' : ''">
+      <view class="anim-envelope" v-if="step >= 2" :class="step >= 4 ? 'flying' : ''" :animation="envelopeAnimation">
         <view class="anim-wax-drop" v-if="step === 2" :class="step === 2 ? 'dropping' : ''"></view>
         <view class="anim-stamp" v-if="step === 3" :class="step === 3 ? 'pressing' : ''">
           <view class="stamp-body"></view>
         </view>
-        <view class="anim-seal-result" v-if="step >= 3">🌿</view>
+        <view class="anim-seal-result" v-if="step >= 3" :animation="sealAnimation">🌿</view>
       </view>
     </view>
   </view>
 </template>
 
 <script>
+import { callCloudFunction } from '@/utils/cloud';
+import { saveRoutePayload } from '@/utils/route-payload';
+
 export default {
   data() {
     return {
@@ -62,22 +65,25 @@ export default {
       mode: 'root',
       replyTo: '',
       recipientName: '',
-      headerLabel: 'FROM: THE WINDOWSILL',
-      placeholder: 'Sowing the seed...',
-      submitBtnText: 'SEAL'
+      headerLabel: '写信给远方',
+      placeholder: '写下此刻想说的话...',
+      submitBtnText: '封缄并投递',
+      paperAnimation: {},
+      envelopeAnimation: {},
+      sealAnimation: {}
     };
   },
   onLoad(options) {
     const { type, to, name } = options || {};
     let mode = 'root';
-    let headerLabel = 'FROM: THE WINDOWSILL';
-    let placeholder = 'Sowing the seed...';
-    let submitBtnText = 'SEAL';
+    let headerLabel = '写信给远方';
+    let placeholder = '写下此刻想说的话...';
+    let submitBtnText = '封缄并投递';
     let recipientName = '';
 
     if (type === 'firstReply') {
       mode = 'firstReply';
-      headerLabel = '致远方来信';
+      headerLabel = '回复来信';
       placeholder = '写下你的回信...';
       submitBtnText = '封缄寄出';
     } else if (type === 'reply') {
@@ -109,11 +115,12 @@ export default {
       this.content = e.detail.value;
     },
 
-    async onSubmit() {
-      if (!this.content.trim()) return;
 
-      this.isSealing = true;
-      this.step = 0;
+    runSealingTimeline() {
+      const paperAnim = uni.createAnimation({ duration: 520, timingFunction: 'ease-in-out' });
+      paperAnim.opacity(0.95).scale(1).step({ duration: 0 });
+      paperAnim.opacity(1).scale(0.74).rotateX(12).step({ duration: 520, delay: 100 });
+      this.paperAnimation = paperAnim.export();
 
       setTimeout(() => {
         this.step = 1;
@@ -121,12 +128,29 @@ export default {
 
       setTimeout(() => {
         this.step = 2;
-      }, 600);
+        const envelopeAnim = uni.createAnimation({ duration: 420, timingFunction: 'ease-out' });
+        envelopeAnim.opacity(0).translateY(28).scale(0.82).step({ duration: 0 });
+        envelopeAnim.opacity(1).translateY(0).scale(1).step();
+        this.envelopeAnimation = envelopeAnim.export();
+      }, 580);
 
       setTimeout(() => {
         this.step = 3;
         uni.vibrateShort({ type: 'heavy' });
-      }, 1400);
+        const sealAnim = uni.createAnimation({ duration: 360, timingFunction: 'ease-out' });
+        sealAnim.scale(0).opacity(0).step({ duration: 0 });
+        sealAnim.scale(1.12).opacity(1).step();
+        sealAnim.scale(1).step({ duration: 180 });
+        this.sealAnimation = sealAnim.export();
+      }, 1300);
+    },
+
+    async onSubmit() {
+      if (!this.content.trim()) return;
+
+      this.isSealing = true;
+      this.step = 0;
+      this.runSealingTimeline();
 
       try {
         uni.showLoading({ title: '递送中...', mask: true });
@@ -138,26 +162,17 @@ export default {
           parentId: (this.mode === 'firstReply' || this.mode === 'reply') ? this.replyTo : null
         };
 
-        let res = null;
-        // #ifdef MP-WEIXIN
-        res = await wx.cloud.callFunction({
-          name: 'sendLetter',
-          data: sendData
-        });
-        // #endif
-        // #ifndef MP-WEIXIN
-        res = { result: { code: 500, msg: '当前平台不支持云函数' } };
-        // #endif
+        const result = await callCloudFunction('sendLetter', sendData);
 
         uni.hideLoading();
 
-        if (res.result.code === 200) {
+        if (result.code === 200) {
           this.step = 4;
           setTimeout(() => {
-            this.handleSubmitSuccess(res.result.id, res.result.codeValue);
+            this.handleSubmitSuccess(result.id, result.codeValue);
           }, 1000);
         } else {
-          throw new Error(res.result.msg);
+          throw new Error(result.msg);
         }
       } catch (err) {
         uni.hideLoading();
@@ -179,8 +194,12 @@ export default {
           duration: 1500
         });
         setTimeout(() => {
+          const payloadKey = saveRoutePayload({
+            content: this.content,
+            code: finalCode
+          });
           uni.navigateTo({
-            url: `/pages/windowsill/sealed/index?content=${encodeURIComponent(this.content)}&code=${finalCode}`
+            url: `/pages/windowsill/sealed/index?payloadKey=${payloadKey}`
           });
         }, 1000);
         return;

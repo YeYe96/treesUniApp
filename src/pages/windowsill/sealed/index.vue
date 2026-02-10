@@ -3,9 +3,9 @@
     <view class="card-container">
       <view class="paper-card">
         <view class="card-header">
-          <text class="card-title">Reflections on Silence</text>
+          <text class="card-title">已封缄信件</text>
           <view class="archive-no">
-            <text>ARCHIVE NO.</text>
+            <text>取信码</text>
             <text class="code-text">{{ code }}</text>
           </view>
         </view>
@@ -15,23 +15,25 @@
         </view>
 
         <view class="card-footer">
-          <view class="qr-placeholder">MAILBOX CODE</view>
-          <view class="stamp-seal">SEALED</view>
+          <view class="qr-placeholder">分享取信码</view>
+          <view class="stamp-seal">已封缄</view>
         </view>
       </view>
     </view>
 
     <view class="action-footer">
-      <text class="hint-text">The archive has been sealed. Save to share.</text>
+      <text class="hint-text">信件已封缄，可保存后分享取信码。</text>
       <view class="btn-save" @tap="onSave">
-        <text>SAVE TO GALLERY</text>
+        <text>保存到相册</text>
       </view>
-      <view class="btn-back" @tap="onBack">Return to Desk</view>
+      <view class="btn-back" @tap="onBack">返回信件列表</view>
     </view>
   </view>
 </template>
 
 <script>
+import { consumeRoutePayload } from '@/utils/route-payload';
+
 export default {
   data() {
     return {
@@ -40,15 +42,18 @@ export default {
     };
   },
   onLoad(options) {
-    if (options && options.content) {
-      this.letterContent = decodeURIComponent(options.content);
-      this.code = options.code || '8420';
+    const payload = consumeRoutePayload(options.payloadKey);
+    if (payload && payload.content) {
+      this.letterContent = payload.content;
+      this.code = payload.code || '8420';
+      return;
     }
+    uni.showToast({ title: '信件数据已失效，请重新写信', icon: 'none' });
   },
   methods: {
     onSave() {
       uni.vibrateShort({ type: 'medium' });
-      uni.showToast({ title: 'Saved (Mock)', icon: 'success' });
+      uni.showToast({ title: '已保存（演示）', icon: 'success' });
     },
     onBack() {
       uni.switchTab({ url: '/pages/desk/index' });

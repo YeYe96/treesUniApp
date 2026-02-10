@@ -2,10 +2,10 @@
   <view class="container page-desk">
     <view class="header-side" :class="viewState === 'FOCUS' ? 'fade-away' : ''">
       <view class="header-group">
-        <text class="title-en">MAILBOX</text>
+        <text class="title-en">LETTERS</text>
         <view class="divider-v"></view>
-        <text class="title-cn">我的存档</text>
-        <text class="cycle-tag">CYCLE 4</text>
+        <text class="title-cn">信件列表</text>
+        <text class="cycle-tag">我的往来信件</text>
       </view>
     </view>
 
@@ -26,7 +26,7 @@
       <view class="custom-nav">
         <view class="btn-back" @tap="popStack">
           <text class="arrow-icon">←</text>
-          <text class="back-text">Back</text>
+          <text class="back-text">返回上级</text>
         </view>
       </view>
 
@@ -45,6 +45,8 @@
 
 <script>
 import LivingTree from '@/components/LivingTree.vue';
+import { callCloudFunction, normalizeDeskTree } from '@/utils/cloud';
+import { saveRoutePayload } from '@/utils/route-payload';
 
 export default {
   components: {
@@ -67,20 +69,17 @@ export default {
   methods: {
     async fetchTreeData() {
       this.loading = true;
-      // #ifdef MP-WEIXIN
       try {
-        const res = await wx.cloud.callFunction({
-          name: 'getDeskTree'
-        });
-        if (res.result.code === 200) {
-          this.treeData = res.result.data.tree || [];
+        const result = await callCloudFunction('getDeskTree');
+        if (result.code === 200) {
+          const { tree } = normalizeDeskTree(result);
+          this.treeData = tree;
           this.loading = false;
           return;
         }
       } catch (err) {
         // fall through
       }
-      // #endif
       this.treeData = [];
       this.loading = false;
     },
@@ -92,13 +91,17 @@ export default {
         uni.vibrateShort({ type: 'medium' });
         const parent = this.findParentOfLetter(node._id);
         if (parent) {
+          const payloadKey = saveRoutePayload({
+            letters: parent.children || [],
+            targetLetterId: node._id
+          });
           const connectionId = parent._id;
           const name = parent.title;
           const rootId = parent.rootId || '';
           const isNewEcho = parent.type === 'new_echo';
           const replyId = parent.sourceId || '';
           uni.navigateTo({
-            url: `/pages/desk/detail?id=${connectionId}&targetLetterId=${node._id}&name=${encodeURIComponent(name)}&rootId=${rootId}&isNewEcho=${isNewEcho ? '1' : '0'}&replyId=${replyId}`
+            url: `/pages/desk/detail?id=${connectionId}&payloadKey=${payloadKey}&name=${encodeURIComponent(name)}&rootId=${rootId}&isNewEcho=${isNewEcho ? '1' : '0'}&replyId=${replyId}`
           });
         }
         return;

@@ -1,13 +1,13 @@
 <template>
   <view class="container">
     <view class="header-simple">
-      <text class="page-title">MY LETTERS</text>
+      <text class="page-title">我的发信</text>
       <view class="underline-short"></view>
     </view>
 
     <scroll-view scroll-y class="content-area">
       <view class="letter-list">
-        <view v-for="item in myLetters" :key="item._id" class="letter-card">
+        <view v-for="(item, index) in myLetters" :key="item._id" class="letter-card" :animation="cardAnimations[index]">
           <view class="letter-body">
             <text class="letter-preview">{{ item.content }}</text>
           </view>
@@ -27,7 +27,7 @@
       </view>
     </scroll-view>
 
-    <view class="fab" @tap="onFabClick">
+    <view class="fab" :animation="fabAnimation" @tap="onFabClick">
       <text class="fab-text">+</text>
     </view>
 
@@ -35,38 +35,61 @@
       <view class="leaf-left">🍃</view>
       <view class="leaf-right">🍃</view>
       <view class="sapling-grow">🌱</view>
-      <view class="connection-text">New Connection Established</view>
+      <view class="connection-text">已建立新的信件连接</view>
     </view>
   </view>
 </template>
 
 <script>
+import { callCloudFunction, normalizeDeskTree } from '@/utils/cloud';
+
 export default {
   data() {
     return {
       myLetters: [],
-      isConnecting: false
+      isConnecting: false,
+      cardAnimations: [],
+      fabAnimation: {}
     };
   },
   onShow() {
     this.fetchMyLetters();
+    this.playFabIntro();
   },
   methods: {
+
+    playFabIntro() {
+      const fabAnim = uni.createAnimation({ duration: 500, timingFunction: 'ease-out' });
+      fabAnim.opacity(0).translateY(30).scale(0.85).step({ duration: 0 });
+      fabAnim.opacity(1).translateY(0).scale(1).step({ duration: 500, delay: 260 });
+      this.fabAnimation = fabAnim.export();
+    },
+
+    playListAnimations() {
+      this.cardAnimations = this.myLetters.map((_, index) => {
+        const cardAnim = uni.createAnimation({ duration: 420, timingFunction: 'ease-out' });
+        cardAnim.opacity(0).translateY(24).step({ duration: 0 });
+        cardAnim.opacity(1).translateY(0).step({ delay: index * 80 });
+        return cardAnim.export();
+      });
+    },
+
     async fetchMyLetters() {
-      // #ifdef MP-WEIXIN
       try {
-        const res = await wx.cloud.callFunction({
-          name: 'getDeskTree'
-        });
-        if (res.result.code === 200) {
-          this.myLetters = res.result.data.roots || [];
+        const result = await callCloudFunction('getDeskTree');
+        if (result.code === 200) {
+          const { roots } = normalizeDeskTree(result);
+          this.myLetters = roots;
+          this.$nextTick(() => {
+            this.playListAnimations();
+          });
           return;
         }
       } catch (err) {
         // fall through
       }
-      // #endif
       this.myLetters = [];
+      this.cardAnimations = [];
     },
 
     onFabClick() {

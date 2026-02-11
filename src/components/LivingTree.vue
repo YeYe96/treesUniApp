@@ -1,13 +1,4 @@
-﻿<template>
-  <view class="living-tree" :class="modeClass" :style="{ height: `${svgHeight}px` }">
-    <svg
-      class="tree-svg"
-      :width="canvasWidth"
-      :height="svgHeight"
-      :viewBox="`0 0 ${canvasWidth} ${svgHeight}`"
-      :key="`tree-${growthSeed}`"
-    >
-      <line
+﻿      <line
         v-if="mode === 'GLOBAL' && trunk"
         class="tree-trunk"
         :x1="trunk.x"
@@ -39,7 +30,7 @@
         <template v-if="mode === 'GLOBAL'">
           <view class="node-dot"></view>
           <view class="node-info">
-            <text class="node-title">{{ node.title }}</text>
+            <text class="node-title">{{ node.displayTitle || node.title }}</text>
             <text class="node-date">{{ node.createTime }}</text>
           </view>
         </template>

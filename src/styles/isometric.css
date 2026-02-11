@@ -1,0 +1,80 @@
+/* Isometric Projection Utilities */
+:root {
+  --iso-rotate-x: 60deg;
+  --iso-rotate-z: 45deg;
+  --iso-depth: 4px;
+}
+
+/* Container for isometric scene */
+.iso-scene {
+  transform-style: preserve-3d;
+  perspective: 1000px;
+}
+
+/* The projection class */
+.iso-projection {
+  transform: rotateX(var(--iso-rotate-x)) rotateZ(var(--iso-rotate-z));
+  transform-style: preserve-3d;
+}
+
+/* Geometric Leaf (Diamond Shape) */
+.geo-leaf {
+  width: 60px;
+  height: 60px;
+  background-color: theme('colors.leaf.you');
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  position: absolute;
+  /* Center the node */
+  transform-origin: center center;
+  /* Hard Shadow for depth */
+  box-shadow: 4px 4px 0px rgba(0,0,0,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+.geo-leaf.is-me {
+  background-color: theme('colors.leaf.me');
+  border-radius: 4px 24px 4px 24px; /* Organic leaf shape hint */
+}
+
+.geo-leaf.is-you {
+  background-color: theme('colors.leaf.you');
+  border-radius: 24px 4px 24px 4px;
+}
+
+/* Branch Line */
+.geo-branch {
+  stroke: theme('colors.tree.trunk');
+  stroke-width: 2px;
+  fill: none;
+  stroke-linecap: round;
+  filter: drop-shadow(2px 2px 0px rgba(0,0,0,0.1));
+}
+
+/* Root Base (Hexagon approximation or Cylinder) */
+.geo-root {
+  width: 80px;
+  height: 80px;
+  background-color: theme('colors.tree.wood');
+  border-radius: 50%;
+  border: 4px solid #fff;
+  box-shadow: 8px 8px 0px rgba(0,0,0,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  transform: translate(-50%, -50%) rotateX(var(--iso-rotate-x));
+}
+
+.geo-root.inbound {
+  background-color: theme('colors.tree.trunk');
+}
+
+/* Animations */
+@keyframes iso-float {
+  0%, 100% { transform: translateY(0) rotateX(var(--iso-rotate-x)) rotateZ(var(--iso-rotate-z)); }
+  50% { transform: translateY(-10px) rotateX(var(--iso-rotate-x)) rotateZ(var(--iso-rotate-z)); }
+}
+
+.animate-iso-float {
+  animation: iso-float 6s ease-in-out infinite;
+}

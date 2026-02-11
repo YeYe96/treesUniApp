@@ -1,10 +1,4 @@
-﻿<template>
-  <view class="app-root">
-    <slot />
-  </view>
-</template>
-
-<script>
+﻿<script>
 export default {
   onLaunch() {
     // 仅微信小程序环境初始化云开发
@@ -25,6 +19,10 @@ export default {
 </script>
 
 <style>
+/* #ifndef APP-PLUS-NVUE */
+@import './styles/isometric.css';
+/* #endif */
+
 .app-root {
   min-height: 100vh;
 }

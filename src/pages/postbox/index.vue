@@ -1,54 +1,51 @@
 <template>
   <view class="container page-postbox">
+    <!-- Mist Layer -->
+    <view class="mist-layer"></view>
+    
     <view class="header-side">
       <view class="header-group">
-        <text class="title-en">取信邮箱</text>
+        <text class="title-en">RECEIVER</text>
         <view class="divider-v"></view>
-        <text class="title-cn">输入取信码</text>
-        <text class="cycle-tag">查看来信</text>
+        <text class="title-cn">取信</text>
       </view>
     </view>
 
     <view class="ritual-content" :animation="ritualAnimation">
-      <view class="decoration-area">
-        <view class="decor-icon left">🌿</view>
-        <view class="decor-icon right">🌿</view>
-      </view>
-
       <view class="input-section">
-        <text class="code-label">取 信 码</text>
-        <view class="underline-deco"></view>
-
+        <text class="code-label">ENTER KEY</text>
+        
         <input
           class="code-input"
-          placeholder=""
+          placeholder-class="placeholder"
           :value="code"
           maxlength="6"
           confirm-type="go"
           @input="onInput"
           @confirm="onSubmit"
         />
+        
+        <view class="input-line" :class="code.length > 0 ? 'active' : ''"></view>
 
-        <text class="instruction">输入对方分享给你的取信码，
-即可拆阅信件。</text>
+        <text class="instruction">Input the key to find a seed.</text>
       </view>
 
       <view class="action-section">
-        <view class="leaf-mark">🍃</view>
-
         <view class="btn-open" :class="code.length > 0 ? 'active' : ''" :animation="openBtnAnimation" @tap="onSubmit">
-          <text>拆 开 信 封</text>
-          <view class="icon-arrow">→</view>
+          <view class="geo-btn-inner">
+            <text>FIND SEED</text>
+          </view>
         </view>
       </view>
     </view>
 
+    <!-- Retrieval Animation Layer -->
     <view class="anim-retrieval-layer" v-if="isRetrieving" @touchmove.stop.prevent>
-      <view class="falling-envelope" :animation="retrievalEnvelopeAnimation">
-        <view class="envelope-back"></view>
-        <view class="envelope-seal">🌿</view>
+      <view class="falling-seed" :animation="retrievalSeedAnimation">
+        <view class="seed-core"></view>
+        <view class="seed-aura"></view>
       </view>
-      <view class="retrieval-text" :animation="retrievalTextAnimation">正在取信...</view>
+      <view class="retrieval-text" :animation="retrievalTextAnimation">Searching the forest...</view>
     </view>
   </view>
 </template>
@@ -64,7 +61,7 @@ export default {
       isRetrieving: false,
       ritualAnimation: {},
       openBtnAnimation: {},
-      retrievalEnvelopeAnimation: {},
+      retrievalSeedAnimation: {},
       retrievalTextAnimation: {}
     };
   },
@@ -79,30 +76,30 @@ export default {
     onSubmit() {
       if (!this.code) return;
       const tapAnim = uni.createAnimation({ duration: 120, timingFunction: 'ease-out' });
-      tapAnim.scale(0.94).step().scale(1).step({ duration: 180 });
+      tapAnim.scale(0.95).step().scale(1).step({ duration: 180 });
       this.openBtnAnimation = tapAnim.export();
 
       uni.vibrateShort({ type: 'light' });
       this.fetchLetter(this.code);
     },
 
-
     runIntroAnimation() {
-      const intro = uni.createAnimation({ duration: 700, timingFunction: 'ease-out' });
-      intro.opacity(0).translateY(36).step({ duration: 0 });
+      const intro = uni.createAnimation({ duration: 800, timingFunction: 'cubic-bezier(0.19, 1, 0.22, 1)' });
+      intro.opacity(0).translateY(40).step({ duration: 0 });
       intro.opacity(1).translateY(0).step();
       this.ritualAnimation = intro.export();
     },
 
     runRetrievalAnimation() {
-      const envelopeAnim = uni.createAnimation({ duration: 900, timingFunction: 'ease-in-out' });
-      envelopeAnim.opacity(0).translateY(-20).scale(0.86).step({ duration: 0 });
-      envelopeAnim.opacity(1).translateY(0).scale(1).step();
-      this.retrievalEnvelopeAnimation = envelopeAnim.export();
+      const seedAnim = uni.createAnimation({ duration: 1500, timingFunction: 'ease-in-out' });
+      seedAnim.top('-20%').opacity(0).scale(0.5).step({ duration: 0 });
+      seedAnim.top('50%').opacity(1).scale(1.2).step({ duration: 1000 });
+      seedAnim.scale(1).step({ duration: 500 });
+      this.retrievalSeedAnimation = seedAnim.export();
 
-      const textAnim = uni.createAnimation({ duration: 700, timingFunction: 'ease-in-out' });
+      const textAnim = uni.createAnimation({ duration: 800, timingFunction: 'ease-out' });
       textAnim.opacity(0).step({ duration: 0 });
-      textAnim.opacity(1).step({ duration: 500, delay: 260 });
+      textAnim.opacity(1).step({ duration: 500, delay: 500 });
       this.retrievalTextAnimation = textAnim.export();
     },
 
@@ -115,15 +112,18 @@ export default {
 
       try {
         const fetchPromise = callCloudFunction('getLetter', { code });
-        const animPromise = new Promise((resolve) => setTimeout(resolve, 2500));
+        const animPromise = new Promise((resolve) => setTimeout(resolve, 2000));
         const [result] = await Promise.all([fetchPromise, animPromise]);
 
         if (result.code === 200) {
           const letter = result.data || {};
           const payloadKey = saveRoutePayload({
             letterId: letter._id,
+            rootId: letter.rootId || '',
             content: letter.content,
-            createTime: letter.createTime
+            createTime: letter.createTime,
+            fromAlias: letter.fromAlias || '',
+            direction: letter.direction || ''
           });
           uni.vibrateShort({ type: 'light' });
 
@@ -132,20 +132,14 @@ export default {
             uni.navigateTo({
               url: `/pages/postbox/open/index?payloadKey=${payloadKey}`
             });
-          }, 500);
+          }, 300);
         } else {
           this.isRetrieving = false;
-          uni.showToast({
-            title: result.msg || '查无此信',
-            icon: 'none'
-          });
+          uni.showToast({ title: result.msg || 'Seed not found', icon: 'none' });
         }
       } catch (err) {
         this.isRetrieving = false;
-        uni.showToast({
-          title: err.message || '取信失败',
-          icon: 'none'
-        });
+        uni.showToast({ title: err.message || 'Connection lost', icon: 'none' });
       }
     }
   }
@@ -157,15 +151,30 @@ export default {
   display: flex;
   flex-direction: row;
   height: 100vh;
+  position: relative;
   overflow: hidden;
+  background-color: var(--bg-mist);
+}
+
+.mist-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 30%, rgba(255,255,255,0.8) 0%, rgba(240,244,248,0.4) 60%, transparent 100%);
+  z-index: 0;
 }
 
 .header-side {
-  width: 140rpx;
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  width: 120rpx;
   padding-top: 100rpx;
   display: flex;
   justify-content: center;
+  position: relative;
+  z-index: 10;
+  border-right: 1px solid rgba(0,0,0,0.05);
 }
 
 .header-group {
@@ -173,37 +182,31 @@ export default {
   text-orientation: mixed;
   display: flex;
   align-items: center;
-  gap: 24rpx;
+  gap: 20rpx;
 }
 
 .title-en {
   font-family: var(--font-sans);
-  font-size: 24rpx;
-  letter-spacing: 6rpx;
-  color: var(--trunk);
-  font-weight: bold;
+  font-size: 20rpx;
+  letter-spacing: 4rpx;
+  color: var(--ui-primary);
+  opacity: 0.5;
   transform: rotate(180deg);
-}
-
-.title-cn {
-  font-family: var(--font-serif);
-  font-size: 36rpx;
-  color: var(--trunk);
-  font-style: italic;
-  font-weight: 500;
+  font-weight: bold;
 }
 
 .divider-v {
   width: 2rpx;
-  height: 60rpx;
-  background-color: var(--sage);
+  height: 40rpx;
+  background-color: var(--ui-primary);
+  opacity: 0.3;
 }
 
-.cycle-tag {
-  font-size: 18rpx;
-  color: var(--sage);
-  letter-spacing: 2rpx;
-  margin-top: 20rpx;
+.title-cn {
+  font-family: var(--font-serif);
+  font-size: 32rpx;
+  color: var(--ui-primary);
+  font-weight: 600;
 }
 
 .ritual-content {
@@ -212,157 +215,160 @@ export default {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40rpx;
-}
-
-.decoration-area {
-  display: flex;
-  justify-content: space-between;
-  width: 60%;
-  margin-bottom: 80rpx;
-  opacity: 0.5;
-}
-
-.decor-icon {
-  font-size: 40rpx;
-  color: var(--ink-light);
+  position: relative;
+  z-index: 10;
 }
 
 .input-section {
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 100%;
-  margin-bottom: 120rpx;
+  margin-bottom: 100rpx;
 }
 
 .code-label {
-  font-family: var(--font-serif);
-  font-size: 48rpx;
-  letter-spacing: 12rpx;
-  color: var(--sage);
-  font-style: italic;
-  margin-bottom: 20rpx;
-}
-
-.underline-deco {
-  width: 200rpx;
-  height: 2rpx;
-  background: var(--sage);
+  font-family: var(--font-sans);
+  font-size: 20rpx;
+  letter-spacing: 6rpx;
+  color: var(--ui-primary);
+  opacity: 0.5;
   margin-bottom: 40rpx;
+  font-weight: bold;
 }
 
 .code-input {
-  width: 300rpx;
-  height: 80rpx;
+  width: 400rpx;
+  height: 100rpx;
   text-align: center;
   font-family: var(--font-sans);
-  font-size: 40rpx;
-  color: var(--ink);
-  letter-spacing: 8rpx;
-  border-bottom: 1px dashed var(--ink-light);
+  font-size: 60rpx;
+  color: var(--ui-primary);
+  letter-spacing: 12rpx;
+  background: transparent;
+  padding: 0;
+  margin-bottom: 10rpx;
+}
+
+.input-line {
+  width: 100rpx;
+  height: 4rpx;
+  background: var(--ui-primary);
+  opacity: 0.2;
+  transition: width 0.3s, opacity 0.3s;
   margin-bottom: 40rpx;
 }
 
+.input-line.active {
+  width: 400rpx;
+  opacity: 0.8;
+}
+
 .instruction {
-  font-family: var(--font-serif);
-  font-size: 24rpx;
-  color: var(--ink-light);
-  text-align: center;
-  line-height: 1.6;
-  font-style: italic;
+  font-family: var(--font-sans);
+  font-size: 20rpx;
+  color: var(--ui-primary);
+  opacity: 0.4;
+  letter-spacing: 2rpx;
 }
 
 .action-section {
   display: flex;
-  align-items: center;
-  gap: 30rpx;
-  width: 100%;
-  padding-left: 40rpx;
-}
-
-.leaf-mark {
-  font-size: 32rpx;
-  opacity: 0.6;
+  justify-content: center;
 }
 
 .btn-open {
-  border: 1px solid var(--trunk);
-  border-radius: 40rpx;
-  padding: 20rpx 60rpx;
-  display: flex;
-  align-items: center;
-  gap: 20rpx;
-  font-family: var(--font-sans);
-  font-size: 24rpx;
-  letter-spacing: 4rpx;
-  color: var(--trunk);
   opacity: 0.5;
-  transition: all 0.3s;
+  pointer-events: none;
+  transition: opacity 0.3s;
 }
 
 .btn-open.active {
-  background-color: var(--trunk);
-  color: var(--paper-light);
   opacity: 1;
+  pointer-events: auto;
 }
 
-.icon-arrow {
+.geo-btn-inner {
+  padding: 20rpx 60rpx;
+  border: 2rpx solid var(--ui-primary);
+  border-radius: 4rpx;
+  background: transparent;
+  transition: all 0.2s;
+}
+
+.btn-open.active .geo-btn-inner {
+  background: var(--ui-primary);
+}
+
+.geo-btn-inner text {
+  font-family: var(--font-sans);
   font-size: 24rpx;
+  letter-spacing: 4rpx;
+  color: var(--ui-primary);
+  font-weight: bold;
 }
 
+.btn-open.active .geo-btn-inner text {
+  color: #fff;
+}
+
+/* Retrieval Animation */
 .anim-retrieval-layer {
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.7);
-  z-index: 1000;
+  background: rgba(255, 255, 255, 0.9);
+  z-index: 100;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  perspective: 1000px;
 }
 
-.falling-envelope {
-  width: 400rpx;
-  height: 280rpx;
-  background-color: #f2efe9;
-  box-shadow: 0 20rpx 50rpx rgba(0, 0, 0, 0.3);
-  position: relative;
-  border-radius: 8rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: fallDown 2.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+.falling-seed {
+  position: absolute;
+  top: -20%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 60rpx;
+  height: 60rpx;
 }
 
-.envelope-seal {
-  font-size: 60rpx;
-  text-shadow: 0 4rpx 10rpx rgba(0, 0, 0, 0.2);
+.seed-core {
+  width: 100%;
+  height: 100%;
+  background: var(--leaf-you);
+  transform: rotate(45deg);
+  border-radius: 4rpx;
+  box-shadow: 0 10rpx 40rpx rgba(42, 157, 143, 0.4);
+}
+
+.seed-aura {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 200%;
+  height: 200%;
+  transform: translate(-50%, -50%);
+  border: 2rpx solid var(--leaf-you);
+  border-radius: 50%;
+  opacity: 0.2;
+  animation: pulse 2s infinite;
 }
 
 .retrieval-text {
   margin-top: 100rpx;
-  color: #fff;
-  font-family: var(--font-serif);
-  font-style: italic;
-  opacity: 0;
-  animation: fadeIn 0.5s ease 0.5s forwards;
+  font-family: var(--font-sans);
+  font-size: 24rpx;
   letter-spacing: 4rpx;
+  color: var(--ui-primary);
+  opacity: 0.6;
 }
 
-@keyframes fallDown {
-  0% { transform: translateY(-120vh) rotate(15deg) scale(0.5); opacity: 0; }
-  30% { transform: translateY(-20vh) rotate(-10deg) scale(0.8); opacity: 1; }
-  60% { transform: translateY(5vh) rotate(5deg) scale(0.9); }
-  80% { transform: translateY(-2vh) rotate(-2deg) scale(0.95); }
-  100% { transform: translateY(0) rotate(0) scale(1); opacity: 1; }
-}
-
-@keyframes fadeIn {
-  to { opacity: 0.8; }
+@keyframes pulse {
+  0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.2; }
+  50% { transform: translate(-50%, -50%) scale(1.1); opacity: 0; }
+  100% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.2; }
 }
 </style>

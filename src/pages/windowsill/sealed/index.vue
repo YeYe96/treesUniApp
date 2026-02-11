@@ -1,12 +1,3 @@
-<template>
-  <view class="container page-sealed">
-    <view class="card-container">
-      <view class="paper-card">
-        <view class="card-header">
-          <text class="card-title">已封缄信件</text>
-          <view class="archive-no">
-            <text>取信码</text>
-            <text class="code-text">{{ code }}</text>
           </view>
         </view>
 
@@ -38,14 +29,17 @@ export default {
   data() {
     return {
       letterContent: 'The seed of silence...',
-      code: '8420'
+      code: ''
     };
   },
   onLoad(options) {
     const payload = consumeRoutePayload(options.payloadKey);
     if (payload && payload.content) {
       this.letterContent = payload.content;
-      this.code = payload.code || '8420';
+      this.code = payload.code || '';
+      if (!payload.code) {
+        console.warn('sealed page missing codeValue in payload', payload);
+      }
       return;
     }
     uni.showToast({ title: '信件数据已失效，请重新写信', icon: 'none' });

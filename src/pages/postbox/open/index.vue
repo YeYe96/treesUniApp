@@ -1,23 +1,42 @@
 <template>
-  <view class="container">
+  <view class="container page-open">
+    <view class="mist-layer"></view>
+
+    <!-- The Blooming Animation -->
     <view class="opening-scene" :class="isLoading ? '' : 'hidden'">
-      <view class="seal-icon">🌿</view>
-      <view class="loading-text">拆阅中...</view>
+      <view class="seed-wrapper" :animation="seedScaleAnim">
+        <view class="geo-seed"></view>
+        <view class="ring ring-1"></view>
+        <view class="ring ring-2"></view>
+      </view>
     </view>
 
-    <view class="letter-container" :class="showContent ? 'fade-in' : ''" :animation="letterAnimation">
-      <scroll-view scroll-y class="paper-content">
-        <view class="meta-info">
-          <text class="date">{{ createTime }}</text>
-          <text class="from">来自一位陌生朋友</text>
+    <!-- Content Card -->
+    <view class="letter-container" :class="showContent ? 'fade-in' : ''">
+      <view class="geo-card" :animation="cardAnimation">
+        <scroll-view scroll-y class="card-scroll">
+          <view class="card-inner">
+            <view class="meta-header">
+              <text class="date">{{ createTime }}</text>
+              <view class="tag">FROM SOMEONE</view>
+            </view>
+            
+            <view class="body-content">
+              <text selectable>{{ content }}</text>
+            </view>
+
+            <view class="footer-gap"></view>
+          </view>
+        </scroll-view>
+
+        <view class="action-bar" :animation="barAnimation">
+          <view class="btn-archive" @tap="onArchive">
+            <text>KEEP SEED</text>
+          </view>
+          <view class="btn-reply" @tap="onReply">
+            <text>REPLY</text>
+          </view>
         </view>
-
-        <text class="content-text">{{ content }}</text>
-      </scroll-view>
-
-      <view class="action-bar" :animation="actionBarAnimation">
-        <view class="btn-archive" @tap="onArchive">加入信件列表</view>
-        <view class="btn-reply" @tap="onReply">写回信</view>
       </view>
     </view>
   </view>
@@ -31,80 +50,99 @@ export default {
   data() {
     return {
       letterId: '',
+      rootId: '',
       content: '',
       createTime: '',
       isLoading: true,
       showContent: false,
-      letterAnimation: {},
-      actionBarAnimation: {}
+      seedScaleAnim: {},
+      cardAnimation: {},
+      barAnimation: {}
     };
   },
   onLoad(options) {
     const payload = consumeRoutePayload(options.payloadKey);
     if (payload && payload.letterId) {
       this.letterId = payload.letterId;
+      this.rootId = payload.rootId || '';
       this.content = payload.content || '';
       this.createTime = formatTime(new Date(payload.createTime || new Date()));
-      setTimeout(() => {
-        this.isLoading = false;
-        this.showContent = true;
-        this.$nextTick(() => {
-          this.playOpenAnimations();
-        });
-      }, 2000);
+      
+      // Start Animation
+      this.$nextTick(() => {
+        this.runBloomingSequence();
+      });
       return;
     }
 
     this.isLoading = false;
-    this.showContent = true;
-    this.$nextTick(() => {
-      this.playOpenAnimations();
-    });
-    uni.showToast({
-      title: '信件数据已失效，请重新取信',
-      icon: 'none'
+    uni.showModal({
+      title: '提示',
+      content: '信件数据已失效，可返回上一页重试。',
+      confirmText: '返回',
+      showCancel: false,
+      success: () => uni.navigateBack()
     });
   },
   methods: {
+    runBloomingSequence() {
+      // Step 1: Seed pulses and expands
+      const seedAnim = uni.createAnimation({ duration: 1200, timingFunction: 'cubic-bezier(0.19, 1, 0.22, 1)' });
+      seedAnim.scale(1).rotate(0).step({ duration: 0 });
+      seedAnim.scale(50).rotate(45).opacity(0).step({ duration: 1200 }); // Expands to fill screen
+      this.seedScaleAnim = seedAnim.export();
 
-    playOpenAnimations() {
-      const paperAnim = uni.createAnimation({ duration: 700, timingFunction: 'ease-out' });
-      paperAnim.opacity(0).translateY(28).step({ duration: 0 });
-      paperAnim.opacity(1).translateY(0).step();
-      this.letterAnimation = paperAnim.export();
+      // Step 2: Reveal Content
+      setTimeout(() => {
+        this.isLoading = false;
+        this.showContent = true;
+        
+        const cardAnim = uni.createAnimation({ duration: 800, timingFunction: 'cubic-bezier(0.19, 1, 0.22, 1)' });
+        cardAnim.opacity(0).scale(0.9).translateY(40).step({ duration: 0 });
+        cardAnim.opacity(1).scale(1).translateY(0).step();
+        this.cardAnimation = cardAnim.export();
 
-      const barAnim = uni.createAnimation({ duration: 520, timingFunction: 'ease-out' });
-      barAnim.opacity(0).translateY(20).step({ duration: 0 });
-      barAnim.opacity(1).translateY(0).step({ delay: 240 });
-      this.actionBarAnimation = barAnim.export();
+        const barAnim = uni.createAnimation({ duration: 600, timingFunction: 'ease-out' });
+        barAnim.opacity(0).translateY(20).step({ duration: 0 });
+        barAnim.opacity(1).translateY(0).step({ delay: 300 });
+        this.barAnimation = barAnim.export();
+      }, 600);
     },
 
     onReply() {
-      uni.vibrateShort({ type: 'light' });
+      if (!this.letterId) return;
+      uni.vibrateShort({ type: 'medium' });
       uni.navigateTo({
         url: `/pages/windowsill/editor?type=firstReply&to=${this.letterId}`
       });
     },
+    
     onArchive() {
-      uni.vibrateShort({ type: 'medium' });
-      uni.showToast({
-        title: '已加入信件列表',
-        icon: 'success'
-      });
+      uni.vibrateShort({ type: 'light' });
+      uni.showToast({ title: 'Saved to Forest', icon: 'success' });
       setTimeout(() => {
         uni.switchTab({ url: '/pages/desk/index' });
-      }, 1500);
+      }, 1000);
     }
   }
 };
 </script>
 
 <style scoped>
-.container {
-  background-color: var(--color-bg-paper);
+.page-open {
+  background-color: var(--bg-mist);
   height: 100vh;
-  padding: 0;
   position: relative;
+  overflow: hidden;
+}
+
+.mist-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at 50% 30%, rgba(255,255,255,0.9) 0%, rgba(240,244,248,0.5) 70%);
 }
 
 .opening-scene {
@@ -114,12 +152,9 @@ export default {
   width: 100%;
   height: 100%;
   z-index: 100;
-  background-color: var(--color-bg-paper);
   display: flex;
-  flex-direction: column;
-  justify-content: center;
   align-items: center;
-  transition: opacity 0.8s ease;
+  justify-content: center;
 }
 
 .opening-scene.hidden {
@@ -127,88 +162,153 @@ export default {
   pointer-events: none;
 }
 
-.seal-icon {
-  width: 120rpx;
-  height: 120rpx;
-  margin-bottom: var(--spacing-lg);
-  font-size: 72rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: pulse 2s infinite ease-in-out;
+.seed-wrapper {
+  position: relative;
+  width: 100rpx;
+  height: 100rpx;
 }
 
-.loading-text {
-  font-size: 28rpx;
-  color: var(--color-text-secondary);
-  letter-spacing: 4rpx;
+.geo-seed {
+  width: 100%;
+  height: 100%;
+  background: var(--leaf-you);
+  transform: rotate(45deg);
+  border-radius: 4rpx;
 }
 
-@keyframes pulse {
-  0% { transform: scale(0.95); opacity: 0.8; }
-  50% { transform: scale(1.05); opacity: 1; }
-  100% { transform: scale(0.95); opacity: 0.8; }
+.ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border: 4rpx solid var(--leaf-you);
+  border-radius: 50%;
+  opacity: 0.3;
+}
+
+.ring-1 { width: 140%; height: 140%; animation: pulseRing 2s infinite; }
+.ring-2 { width: 220%; height: 220%; animation: pulseRing 2s infinite 0.5s; opacity: 0.1; }
+
+@keyframes pulseRing {
+  0% { transform: translate(-50%, -50%) scale(0.9); opacity: 0.3; }
+  100% { transform: translate(-50%, -50%) scale(1.1); opacity: 0; }
 }
 
 .letter-container {
   width: 100%;
   height: 100%;
-  display: flex;
-  flex-direction: column;
+  position: relative;
   opacity: 0;
-  transition: opacity 1s ease 0.5s;
+  z-index: 10;
+  padding: 40rpx;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .letter-container.fade-in {
   opacity: 1;
 }
 
-.paper-content {
-  flex: 1;
-  padding: var(--spacing-xl);
-  box-sizing: border-box;
+.geo-card {
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 4rpx;
+  box-shadow: 0 30rpx 80rpx rgba(38, 70, 83, 0.1);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  border-top: 8rpx solid var(--leaf-you);
 }
 
-.meta-info {
-  margin-bottom: var(--spacing-xl);
+.card-scroll {
+  flex: 1;
+  overflow: hidden;
+}
+
+.card-inner {
+  padding: 60rpx;
+}
+
+.meta-header {
   display: flex;
   justify-content: space-between;
-  font-size: 24rpx;
-  color: var(--color-text-secondary);
-  border-bottom: 2rpx solid rgba(0, 0, 0, 0.05);
-  padding-bottom: var(--spacing-sm);
+  align-items: center;
+  margin-bottom: 60rpx;
+  border-bottom: 2rpx solid rgba(0,0,0,0.05);
+  padding-bottom: 30rpx;
 }
 
-.content-text {
-  font-size: 32rpx;
-  line-height: 1.8;
-  color: var(--color-text-primary);
+.date {
+  font-family: var(--font-sans);
+  font-size: 20rpx;
+  color: #999;
+}
+
+.tag {
+  font-family: var(--font-sans);
+  font-size: 20rpx;
+  background: var(--leaf-you);
+  color: #fff;
+  padding: 8rpx 16rpx;
+  border-radius: 4rpx;
+  letter-spacing: 2rpx;
+}
+
+.body-content {
+  font-family: var(--font-serif);
+  font-size: 34rpx;
+  line-height: 2;
+  color: var(--ui-primary);
   white-space: pre-wrap;
 }
 
+.footer-gap {
+  height: 100rpx;
+}
+
 .action-bar {
-  padding: var(--spacing-md) var(--spacing-xl);
-  padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom));
   display: flex;
   justify-content: space-between;
-  background-color: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(10px);
+  padding: 40rpx;
+  background: rgba(240, 244, 248, 0.6);
+  border-top: 1px solid rgba(0,0,0,0.05);
 }
 
-.btn-archive,
-.btn-reply {
+.btn-archive, .btn-reply {
   padding: 20rpx 40rpx;
-  border-radius: 40rpx;
-  font-size: 30rpx;
+  border: 1px solid transparent;
+  transition: all 0.2s;
 }
 
-.btn-archive {
-  color: var(--color-text-secondary);
+.btn-archive text {
+  font-family: var(--font-sans);
+  font-size: 22rpx;
+  color: #999;
+  letter-spacing: 2rpx;
 }
 
 .btn-reply {
-  background-color: var(--color-accent-rust);
+  border: 2rpx solid var(--leaf-you);
+  border-radius: 4rpx;
+}
+
+.btn-reply text {
+  font-family: var(--font-sans);
+  font-size: 22rpx;
+  color: var(--leaf-you);
+  letter-spacing: 2rpx;
+  font-weight: bold;
+}
+
+.btn-reply:active {
+  background: var(--leaf-you);
+}
+
+.btn-reply:active text {
   color: #fff;
-  box-shadow: 0 4rpx 12rpx rgba(139, 69, 19, 0.3);
 }
 </style>

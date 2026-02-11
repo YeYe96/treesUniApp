@@ -1,48 +1,55 @@
 <template>
-  <view class="container page-editor" :style="{ backgroundColor: textures[bgIndex] }">
-    <view class="editor-header">
-      <view class="header-line">
-        <text class="label">{{ headerLabel }}</text>
-        <text class="date">{{ currentDate }}</text>
-      </view>
-    </view>
+  <view class="container page-editor" :class="isSealing ? 'sealing-mode' : ''">
+    <!-- Mist Layer -->
+    <view class="mist-layer"></view>
 
-    <textarea
-      class="letter-input"
-      :placeholder="placeholder"
-      placeholder-class="placeholder-style"
-      :maxlength="maxLen"
-      :value="content"
-      auto-focus
-      :show-confirm-bar="false"
-      @input="onInput"
-    ></textarea>
-
-    <view class="editor-footer">
-      <view class="texture-selector">
-        <view
-          v-for="(item, index) in textures"
-          :key="item"
-          class="dot"
-          :class="bgIndex === index ? 'selected' : ''"
-          :style="{ backgroundColor: item }"
-          @tap="onSelectTexture(index)"
-        ></view>
-      </view>
-      <view class="btn-seal" :class="content.length > 0 ? 'active' : ''" @tap="onSubmit">
-        <text>{{ submitBtnText }}</text>
-      </view>
-    </view>
-
-    <view class="animation-layer" v-if="isSealing" @touchmove.stop.prevent>
-      <view class="anim-paper" :class="step >= 1 ? 'folding' : ''" :animation="paperAnimation" :style="{ backgroundColor: textures[bgIndex] }"></view>
-
-      <view class="anim-envelope" v-if="step >= 2" :class="step >= 4 ? 'flying' : ''" :animation="envelopeAnimation">
-        <view class="anim-wax-drop" v-if="step === 2" :class="step === 2 ? 'dropping' : ''"></view>
-        <view class="anim-stamp" v-if="step === 3" :class="step === 3 ? 'pressing' : ''">
-          <view class="stamp-body"></view>
+    <view class="editor-main">
+      <view class="editor-header">
+        <view class="header-line">
+          <text class="label">{{ headerLabel }}</text>
+          <text class="date">{{ currentDate }}</text>
         </view>
-        <view class="anim-seal-result" v-if="step >= 3" :animation="sealAnimation">🌿</view>
+      </view>
+
+      <textarea
+        class="letter-input"
+        :placeholder="placeholder"
+        placeholder-class="placeholder-style"
+        :maxlength="maxLen"
+        :value="content"
+        auto-focus
+        :show-confirm-bar="false"
+        @input="onInput"
+      ></textarea>
+
+      <view class="editor-footer">
+        <view class="btn-group">
+          <view class="btn-cancel" @tap="onCancel">
+            <text>ABANDON</text>
+          </view>
+          
+          <view class="btn-seal" :class="content.length > 0 ? 'active' : ''" @tap="onSubmit">
+            <view class="cube-btn">
+              <text class="btn-text">SEND</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- Geometric Animation Overlay -->
+    <view class="anim-overlay" v-if="isSealing" @touchmove.stop.prevent>
+      <view class="geo-scene">
+        <!-- The Paper Folding into a Prism -->
+        <view class="geo-paper" :animation="paperAnimation"></view>
+        
+        <!-- The Seed/Prism Result -->
+        <view class="geo-prism" :animation="prismAnimation">
+          <view class="prism-face face-1"></view>
+          <view class="prism-face face-2"></view>
+          <view class="prism-face face-3"></view>
+          <view class="prism-glow"></view>
+        </view>
       </view>
     </view>
   </view>
@@ -56,42 +63,33 @@ export default {
   data() {
     return {
       content: '',
-      bgIndex: 0,
       maxLen: 1000,
       currentDate: '',
-      textures: ['#f4f6f3', '#f0e6d2', '#e0e0e0'],
       isSealing: false,
-      step: 0,
       mode: 'root',
       replyTo: '',
       recipientName: '',
-      headerLabel: '写信给远方',
-      placeholder: '写下此刻想说的话...',
-      submitBtnText: '封缄并投递',
+      headerLabel: 'NEW ORIGIN',
+      placeholder: 'Plant a thought...',
       paperAnimation: {},
-      envelopeAnimation: {},
-      sealAnimation: {}
+      prismAnimation: {}
     };
   },
   onLoad(options) {
     const { type, to, name } = options || {};
     let mode = 'root';
-    let headerLabel = '写信给远方';
-    let placeholder = '写下此刻想说的话...';
-    let submitBtnText = '封缄并投递';
-    let recipientName = '';
+    let headerLabel = 'NEW ORIGIN'; // 写新信
+    let placeholder = 'Begin the conversation...';
 
     if (type === 'firstReply') {
       mode = 'firstReply';
-      headerLabel = '回复来信';
-      placeholder = '写下你的回信...';
-      submitBtnText = '封缄寄出';
+      headerLabel = 'FIRST ECHO'; // 首回
+      placeholder = 'Reply to the unknown...';
     } else if (type === 'reply') {
       mode = 'reply';
-      recipientName = decodeURIComponent(name || '笔友');
-      headerLabel = `致 ${recipientName} 的回信`;
-      placeholder = '写下你的回信...';
-      submitBtnText = '封缄寄出';
+      const rName = decodeURIComponent(name || 'Unknown');
+      headerLabel = `REPLY TO ${rName}`;
+      placeholder = 'Continue the story...';
     }
 
     const now = new Date();
@@ -99,132 +97,98 @@ export default {
 
     this.mode = mode;
     this.replyTo = to || '';
-    this.recipientName = recipientName;
+    this.recipientName = name ? decodeURIComponent(name) : '';
     this.headerLabel = headerLabel;
     this.placeholder = placeholder;
-    this.submitBtnText = submitBtnText;
     this.currentDate = dateStr;
   },
   methods: {
-    onSelectTexture(index) {
-      this.bgIndex = index;
-      uni.vibrateShort({ type: 'light' });
-    },
-
     onInput(e) {
       this.content = e.detail.value;
     },
 
+    onCancel() {
+      uni.navigateBack();
+    },
 
     runSealingTimeline() {
-      const paperAnim = uni.createAnimation({ duration: 520, timingFunction: 'ease-in-out' });
-      paperAnim.opacity(0.95).scale(1).step({ duration: 0 });
-      paperAnim.opacity(1).scale(0.74).rotateX(12).step({ duration: 520, delay: 100 });
+      // Step 1: Paper folds (Shrink & Rotate)
+      const paperAnim = uni.createAnimation({ duration: 600, timingFunction: 'cubic-bezier(0.19, 1, 0.22, 1)' });
+      paperAnim.opacity(1).scale(1).step({ duration: 0 });
+      paperAnim.opacity(0).scale(0.1).rotateZ(180).step();
       this.paperAnimation = paperAnim.export();
 
+      // Step 2: Prism appears and floats up
+      const prismAnim = uni.createAnimation({ duration: 800, timingFunction: 'cubic-bezier(0.34, 1.56, 0.64, 1)' });
+      prismAnim.opacity(0).scale(0).translateY(50).step({ duration: 0 });
+      
+      // Delay slightly
       setTimeout(() => {
-        this.step = 1;
-      }, 100);
-
-      setTimeout(() => {
-        this.step = 2;
-        const envelopeAnim = uni.createAnimation({ duration: 420, timingFunction: 'ease-out' });
-        envelopeAnim.opacity(0).translateY(28).scale(0.82).step({ duration: 0 });
-        envelopeAnim.opacity(1).translateY(0).scale(1).step();
-        this.envelopeAnimation = envelopeAnim.export();
-      }, 580);
-
-      setTimeout(() => {
-        this.step = 3;
-        uni.vibrateShort({ type: 'heavy' });
-        const sealAnim = uni.createAnimation({ duration: 360, timingFunction: 'ease-out' });
-        sealAnim.scale(0).opacity(0).step({ duration: 0 });
-        sealAnim.scale(1.12).opacity(1).step();
-        sealAnim.scale(1).step({ duration: 180 });
-        this.sealAnimation = sealAnim.export();
-      }, 1300);
+        prismAnim.opacity(1).scale(1).translateY(0).step({ duration: 600 });
+        // Fly away
+        prismAnim.translateY(-600).opacity(0).scale(0.5).step({ duration: 600, delay: 400 });
+        this.prismAnimation = prismAnim.export();
+      }, 400);
     },
 
     async onSubmit() {
       if (!this.content.trim()) return;
+      if ((this.mode === 'firstReply' || this.mode === 'reply') && !this.replyTo) {
+        uni.showToast({ title: 'Missing reply target', icon: 'none' });
+        return;
+      }
 
       this.isSealing = true;
-      this.step = 0;
+      uni.vibrateShort({ type: 'medium' });
       this.runSealingTimeline();
 
       try {
-        uni.showLoading({ title: '递送中...', mask: true });
-
+        // Wait for animation part 1
+        await new Promise(r => setTimeout(r, 800));
+        
         const sendData = {
           content: this.content,
-          theme: this.bgIndex,
           type: this.mode === 'root' ? 'root' : 'reply',
-          parentId: (this.mode === 'firstReply' || this.mode === 'reply') ? this.replyTo : null
+          parentId: (this.mode === 'firstReply' || this.mode === 'reply') ? this.replyTo : null,
+          parentKind: this.mode === 'firstReply'
+            ? 'letter'
+            : this.mode === 'reply'
+              ? 'root'
+              : undefined
         };
 
         const result = await callCloudFunction('sendLetter', sendData);
 
-        uni.hideLoading();
-
         if (result.code === 200) {
-          this.step = 4;
+          // Wait for fly away animation
           setTimeout(() => {
-            this.handleSubmitSuccess(result.id, result.codeValue);
-          }, 1000);
+            this.handleSubmitSuccess(result);
+          }, 800);
         } else {
           throw new Error(result.msg);
         }
       } catch (err) {
-        uni.hideLoading();
         this.isSealing = false;
-        this.step = 0;
-        uni.showToast({
-          title: err.message || '投递失败',
-          icon: 'none'
-        });
+        uni.showToast({ title: err.message || 'Failed to send', icon: 'none' });
       }
     },
 
-    handleSubmitSuccess(letterId, codeValue) {
+    handleSubmitSuccess(result) {
       if (this.mode === 'root') {
-        const finalCode = codeValue || (letterId ? letterId.slice(-4) : '8420');
-        uni.showToast({
-          title: '信笺已封缄',
-          icon: 'success',
-          duration: 1500
+        const payloadKey = saveRoutePayload({
+          content: this.content,
+          code: result.codeValue || ''
         });
-        setTimeout(() => {
-          const payloadKey = saveRoutePayload({
-            content: this.content,
-            code: finalCode
-          });
-          uni.navigateTo({
-            url: `/pages/windowsill/sealed/index?payloadKey=${payloadKey}`
-          });
-        }, 1000);
+        uni.redirectTo({
+          url: `/pages/windowsill/sealed/index?payloadKey=${payloadKey}`
+        });
         return;
       }
 
-      if (this.mode === 'firstReply') {
-        uni.showToast({
-          title: '回信已寄出，静待对方回音',
-          icon: 'none',
-          duration: 2000
-        });
-        setTimeout(() => {
-          uni.navigateBack();
-        }, 2000);
-        return;
-      }
-
-      uni.showToast({
-        title: '信已寄出，静候回音',
-        icon: 'none',
-        duration: 2000
-      });
+      uni.showToast({ title: 'Sent', icon: 'success' });
       setTimeout(() => {
         uni.switchTab({ url: '/pages/desk/index' });
-      }, 2000);
+      }, 1000);
     }
   }
 };
@@ -234,16 +198,43 @@ export default {
 .page-editor {
   display: flex;
   flex-direction: column;
-  padding: 60rpx 48rpx;
-  background-color: var(--paper-aged);
+  background-color: var(--bg-mist);
   height: 100vh;
-  box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
+}
+
+.mist-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(240,244,248,0.6) 100%);
+  z-index: 0;
+}
+
+.editor-main {
+  position: relative;
+  z-index: 10;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 60rpx;
+  transition: transform 0.6s cubic-bezier(0.19, 1, 0.22, 1), opacity 0.6s;
+}
+
+.page-editor.sealing-mode .editor-main {
+  transform: scale(0.9) translateY(20px);
+  opacity: 0;
+  pointer-events: none;
 }
 
 .editor-header {
   margin-bottom: 40rpx;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-  padding-bottom: 24rpx;
+  border-bottom: 2rpx solid rgba(0,0,0,0.05);
+  padding-bottom: 20rpx;
 }
 
 .header-line {
@@ -252,14 +243,13 @@ export default {
   align-items: center;
 }
 
-.label,
-.date {
+.label, .date {
   font-family: var(--font-sans);
-  font-size: 22rpx;
-  color: var(--ink-light);
+  font-size: 20rpx;
+  color: var(--ui-primary);
   letter-spacing: 2rpx;
-  text-transform: uppercase;
-  font-weight: 500;
+  font-weight: bold;
+  opacity: 0.5;
 }
 
 .letter-input {
@@ -268,176 +258,137 @@ export default {
   font-family: var(--font-serif);
   font-size: 36rpx;
   line-height: 1.8;
-  color: var(--ink);
+  color: var(--ui-primary);
   background: transparent;
   padding: 0;
 }
 
 .placeholder-style {
-  color: rgba(45, 45, 45, 0.2);
+  color: rgba(38, 70, 83, 0.2);
   font-style: italic;
 }
 
 .editor-footer {
+  padding-top: 40rpx;
+}
+
+.btn-group {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 32rpx;
 }
 
-.texture-selector {
-  display: flex;
-  gap: 20rpx;
+.btn-cancel {
+  padding: 20rpx;
 }
 
-.dot {
-  width: 20rpx;
-  height: 20rpx;
-  border-radius: 50%;
-  border: 1px solid var(--ink-light);
-  opacity: 0.3;
-  transition: all 0.2s;
-}
-
-.dot.selected {
-  background-color: var(--ink);
-  opacity: 0.8;
-  transform: scale(1.1);
+.btn-cancel text {
+  font-family: var(--font-sans);
+  font-size: 20rpx;
+  letter-spacing: 2rpx;
+  color: #999;
+  font-weight: bold;
 }
 
 .btn-seal {
-  background-color: #ccc;
-  color: #fff;
-  border-radius: 4rpx;
-  font-family: var(--font-sans);
-  font-weight: bold;
-  letter-spacing: 6rpx;
-  font-size: 26rpx;
-  padding: 16rpx 48rpx;
-  box-shadow: none;
-  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   opacity: 0.5;
   pointer-events: none;
+  transition: all 0.3s;
 }
 
 .btn-seal.active {
-  background-color: var(--rust);
   opacity: 1;
   pointer-events: auto;
-  box-shadow: 0 4rpx 12rpx rgba(154, 78, 64, 0.3);
 }
 
-.btn-seal:active {
-  transform: scale(0.98);
+.cube-btn {
+  background: var(--ui-primary);
+  padding: 20rpx 60rpx;
+  border-radius: 4rpx; /* Slight round, keeping it geometric */
+  box-shadow: 0 10rpx 0 rgba(20, 40, 50, 0.8); /* 3D push effect */
+  transition: all 0.1s;
 }
 
-.animation-layer {
+.btn-seal:active .cube-btn {
+  transform: translateY(10rpx);
+  box-shadow: 0 0 0 rgba(20, 40, 50, 0.8);
+}
+
+.btn-text {
+  font-family: var(--font-sans);
+  font-size: 24rpx;
+  color: #fff;
+  letter-spacing: 4rpx;
+  font-weight: bold;
+}
+
+/* Animation Layer */
+.anim-overlay {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.6);
-  z-index: 1000;
+  width: 100%;
+  height: 100%;
+  z-index: 100;
   display: flex;
   align-items: center;
   justify-content: center;
+  perspective: 1000px;
 }
 
-.anim-paper {
-  width: 600rpx;
-  height: 800rpx;
-  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.1);
-  transition: all 0.5s ease;
-}
-
-.anim-paper.folding {
-  width: 300rpx;
-  height: 200rpx;
-  background-color: #fff !important;
-  opacity: 0;
-}
-
-.anim-envelope {
-  width: 320rpx;
-  height: 220rpx;
-  background-color: #fff;
-  border-radius: 8rpx;
-  box-shadow: 0 10rpx 30rpx rgba(0, 0, 0, 0.2);
+.geo-scene {
   position: relative;
+  width: 200rpx;
+  height: 200rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transform-style: preserve-3d;
 }
 
-@keyframes popIn {
-  from { transform: scale(0.8); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
-}
-
-.anim-wax-drop {
-  width: 20rpx;
-  height: 20rpx;
-  background-color: #9a4e40;
-  border-radius: 50%;
+.geo-paper {
   position: absolute;
-  top: -100rpx;
-  animation: waxDrop 0.8s ease-in forwards;
+  width: 400rpx;
+  height: 500rpx;
+  background: #fff;
+  box-shadow: 0 10rpx 30rpx rgba(0,0,0,0.1);
 }
 
-@keyframes waxDrop {
-  0% { top: -100rpx; transform: scale(1); }
-  60% { top: 80rpx; transform: scale(0.8); }
-  80% { top: 90rpx; transform: scale(1.5); opacity: 0.8; }
-  100% { top: 90rpx; transform: scale(3); opacity: 0; }
-}
-
-.anim-stamp {
+.geo-prism {
   position: absolute;
-  z-index: 10;
-  animation: stampPress 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-.stamp-body {
   width: 100rpx;
-  height: 120rpx;
-  background: #5d5548;
-  border-radius: 10rpx;
-  box-shadow: 0 20rpx 40rpx rgba(0, 0, 0, 0.3);
+  height: 100rpx;
+  transform-style: preserve-3d;
+  animation: float 3s ease-in-out infinite;
 }
 
-@keyframes stampPress {
-  0% { transform: scale(1.5) translateY(-50rpx); opacity: 0; }
-  100% { transform: scale(1) translateY(0); opacity: 1; }
+/* Simple CSS Pyramid/Prism approximation */
+.prism-face {
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-left: 50rpx solid transparent;
+  border-right: 50rpx solid transparent;
+  border-bottom: 86.6rpx solid var(--leaf-me); /* Triangle */
+  transform-origin: 50% 100%;
 }
 
-.anim-seal-result {
-  width: 60rpx;
-  height: 60rpx;
-  background-color: #9a4e40;
-  border-radius: 50%;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 30rpx;
-  box-shadow: 0 2rpx 5rpx rgba(0, 0, 0, 0.3);
-  animation: sealAppear 0.3s ease-out;
+.face-1 { transform: rotateY(0deg) translateZ(28.8rpx) rotateX(30deg); filter: brightness(1.1); }
+.face-2 { transform: rotateY(120deg) translateZ(28.8rpx) rotateX(30deg); filter: brightness(0.9); }
+.face-3 { transform: rotateY(240deg) translateZ(28.8rpx) rotateX(30deg); filter: brightness(0.8); }
+
+.prism-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100rpx;
+  height: 100rpx;
+  background: radial-gradient(circle, rgba(233, 196, 106, 0.8) 0%, transparent 70%);
+  transform: translate(-50%, -50px) rotateX(90deg);
 }
 
-@keyframes sealAppear {
-  from { transform: scale(0); }
-  to { transform: scale(1); }
-}
-
-.anim-envelope.flying {
-  animation: flyAway 1.2s ease-in forwards;
-}
-
-@keyframes flyAway {
-  0% { transform: translateY(0) scale(1); opacity: 1; }
-  30% { transform: translateY(20rpx) scale(0.95); }
-  100% { transform: translateY(-800rpx) scale(0.5); opacity: 0; }
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
 }
 </style>

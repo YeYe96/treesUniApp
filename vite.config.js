@@ -1,16 +1,12 @@
-﻿const { defineConfig } = require('vite');
-const uni = require('@dcloudio/vite-plugin-uni');
-const { UnifiedViteWeappTailwindcssPlugin } = require('weapp-tailwindcss/vite');
+import { defineConfig } from 'vite';
+import uni from '@dcloudio/vite-plugin-uni';
+import { UnifiedViteWeappTailwindcssPlugin } from 'weapp-tailwindcss/vite';
 
-module.exports = defineConfig(() => {
-  const weappTw = UnifiedViteWeappTailwindcssPlugin({
-    appType: 'uni-app-vite'
-  }) || [];
-
-  return {
-    plugins: [
-      uni(),
-      ...weappTw
-    ]
-  };
+export default defineConfig({
+  plugins: [
+    uni(),
+    UnifiedViteWeappTailwindcssPlugin({
+      appType: 'uni-app-vite'
+    })
+  ]
 });
